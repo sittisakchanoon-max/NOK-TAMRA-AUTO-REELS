@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+*.db
+*.sqlite3
+
+# Storage & Temp
+storage/downloads/*
+!storage/downloads/.gitkeep
+storage/thumbnails/*
+!storage/thumbnails/.gitkeep
+logs/*.log
+!logs/.gitkeep
+
+# IDE & OS
+.DS_Store
+.idea/
+.vscode/

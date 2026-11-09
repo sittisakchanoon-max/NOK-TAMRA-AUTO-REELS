@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  nok-tamra-auto-reels:
+    build: .
+    container_name: nok_tamra_auto_reels
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - GDRIVE_FOLDER_ID=${GDRIVE_FOLDER_ID:-1HsnkGFR1wPvQXYVYLeaCaqo7q3BS6uxi}
+      - GDRIVE_CHECK_INTERVAL_MINUTES=${GDRIVE_CHECK_INTERVAL_MINUTES:-15}
+      - FACEBOOK_PAGE_ID=${FACEBOOK_PAGE_ID}
+      - FACEBOOK_PAGE_ACCESS_TOKEN=${FACEBOOK_PAGE_ACCESS_TOKEN}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - AUTO_PUBLISH=${AUTO_PUBLISH:-false}
+    volumes:
+      - ./storage:/app/storage
+      - ./logs:/app/logs
