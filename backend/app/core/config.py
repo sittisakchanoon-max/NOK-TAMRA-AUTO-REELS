@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     FACEBOOK_APP_SECRET: Optional[str] = None
     AUTO_PUBLISH: bool = False
     
+    # LINE Bot Messaging API
+    LINE_CHANNEL_SECRET: Optional[str] = None
+    LINE_CHANNEL_ACCESS_TOKEN: Optional[str] = None
+    LINE_ADMIN_USER_ID: Optional[str] = None
+    
     # AI
     GEMINI_API_KEY: Optional[str] = None
     AI_PROVIDER: str = "gemini"

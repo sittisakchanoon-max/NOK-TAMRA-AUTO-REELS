@@ -13,6 +13,7 @@ from backend.app.api.routes_dashboard import router as dashboard_router
 from backend.app.api.routes_videos import router as videos_router
 from backend.app.api.routes_settings import router as settings_router
 from backend.app.api.routes_logs import router as logs_router
+from backend.app.api.routes_line import router as line_router
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -54,6 +55,7 @@ app.include_router(dashboard_router)
 app.include_router(videos_router)
 app.include_router(settings_router)
 app.include_router(logs_router)
+app.include_router(line_router)
 
 # Mount frontend static files
 if FRONTEND_DIR.exists():
