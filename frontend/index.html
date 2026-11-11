@@ -231,10 +231,19 @@
         </div>
       </div>
 
-      <div class="space-y-2 pt-2">
+      <div class="space-y-2.5 pt-2">
+        <!-- Option 1: Open LINE directly -->
+        <a id="lineDirectBtn" href="#" target="_blank" class="tap-scale w-full bg-[#06c755] hover:bg-[#05b34c] text-white font-extrabold py-3 rounded-xl flex items-center justify-center space-x-2 text-sm shadow-lg shadow-green-600/30">
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 5.91 2 10.74c0 3.01 1.77 5.68 4.54 7.21-.2.74-.72 2.68-.82 3.1-.14.56.2.55.43.4.17-.11 2.37-1.61 3.32-2.26.83.12 1.68.18 2.53.18 5.52 0 10-3.91 10-8.74C22 5.91 17.52 2 12 2z"/></svg>
+          <span>สั่งโพสต์ผ่านแอป LINE (กดแล้วเปิด LINE ทันที)</span>
+        </a>
+
+        <!-- Option 2: Copy command for this chat -->
         <button onclick="copyQuickCmdAndClose()" class="tap-scale w-full bg-[var(--gold)] hover:bg-[var(--gold-hover)] text-black font-extrabold py-3 rounded-xl flex items-center justify-center space-x-2 text-sm shadow-lg shadow-yellow-500/30">
-          <span>คัดลอกคำสั่ง & นำไปวางในแชท</span>
+          <svg class="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z"/><path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h8a2 2 0 00-2-2H5z"/></svg>
+          <span>คัดลอกคำสั่งสำหรับนำมาวางในแชทนี้</span>
         </button>
+
         <button onclick="closePublishActionModal()" class="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold py-2.5 rounded-xl text-xs">
           ปิดหน้าต่าง
         </button>
@@ -408,8 +417,14 @@
       const ep = episodesData.find(e => e.epNum === epNum);
       if (!ep) return;
 
+      const cmd = `โพสต์ ${ep.ep} เลย`;
       document.getElementById("pubActionTitle").textContent = `สั่งโพสต์ ${ep.ep}: ${ep.title}`;
-      document.getElementById("quickCmdText").textContent = `โพสต์ ${ep.ep} เลย`;
+      document.getElementById("quickCmdText").textContent = cmd;
+
+      // LINE URL Scheme for bot @790ghuxg
+      const lineUrl = "https://line.me/R/oaMessage/@790ghuxg/?" + encodeURIComponent(cmd);
+      const lineBtn = document.getElementById("lineDirectBtn");
+      if (lineBtn) lineBtn.href = lineUrl;
 
       document.getElementById("publishActionModal").classList.remove("hidden");
       document.body.style.overflow = "hidden";
