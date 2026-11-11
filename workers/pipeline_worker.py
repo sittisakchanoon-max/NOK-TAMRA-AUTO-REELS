@@ -1,6 +1,8 @@
 import json
 import asyncio
 import datetime
+import re
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 from sqlalchemy import select, or_
 
@@ -131,19 +133,39 @@ class PipelineWorker:
                     frame_paths = await self.video_service.extract_multi_frames(video_rec.local_path, video_rec.id, count=5)
                     audio_path = await self.video_service.extract_audio(video_rec.local_path, video_rec.id)
 
-                    # Step 3c: AI Multimodal Analysis & Thai Caption Generation
-                    ai_result = await self.ai_service.analyze_and_generate(
-                        file_name=file_name,
-                        frame_paths=frame_paths,
-                        audio_path=audio_path,
-                        duration=video_rec.duration_seconds or 0
-                    )
+                    # Step 3c: Thai Caption Generation (Prioritize verified factual captions)
+                    ep_match = re.search(r"EP(\d+)", file_name, re.IGNORECASE)
+                    pre_caption = None
+                    if ep_match:
+                        ep_num_str = str(int(ep_match.group(1)))
+                        captions_file = Path(__file__).resolve().parent.parent / "data" / "captions.json"
+                        if captions_file.exists():
+                            try:
+                                with open(captions_file, "r", encoding="utf-8") as cf:
+                                    caps_data = json.load(cf)
+                                    if ep_num_str in caps_data:
+                                        pre_caption = caps_data[ep_num_str]
+                            except Exception:
+                                pass
 
-                    video_rec.ai_analysis = json.dumps(ai_result.get("analysis", {}), ensure_ascii=False)
-                    video_rec.caption_title = ai_result.get("caption_title", file_name)
-                    video_rec.caption_body = ai_result.get("caption_body", "")
-                    video_rec.hashtags = ai_result.get("hashtags", "#NOKTAMRA #ReelsTH")
-                    video_rec.status = "READY_TO_POST"
+                    if pre_caption:
+                        video_rec.caption_title = pre_caption.get("title", file_name)
+                        video_rec.caption_body = pre_caption.get("text", "")
+                        video_rec.hashtags = ""  # Already formatted inside text
+                        video_rec.status = "READY_TO_POST"
+                    else:
+                        ai_result = await self.ai_service.analyze_and_generate(
+                            file_name=file_name,
+                            frame_paths=frame_paths,
+                            audio_path=audio_path,
+                            duration=video_rec.duration_seconds or 0
+                        )
+                        video_rec.ai_analysis = json.dumps(ai_result.get("analysis", {}), ensure_ascii=False)
+                        video_rec.caption_title = ai_result.get("caption_title", file_name)
+                        video_rec.caption_body = ai_result.get("caption_body", "")
+                        video_rec.hashtags = ai_result.get("hashtags", "#NOKTAMRA #ReelsTH")
+                        video_rec.status = "READY_TO_POST"
+
                     await session.commit()
                     stats["analyzed"] += 1
 
@@ -174,6 +196,28 @@ class PipelineWorker:
                                 video_rec.facebook_reel_url = pub_res.get("reel_url")
                                 video_rec.published_at = datetime.datetime.utcnow()
                                 stats["published"] += 1
+                                await session.commit()
+
+                                # Send LINE Notification
+                                try:
+                                    from services.line_service import line_service
+                                    admin_id = await get_setting("LINE_ADMIN_USER_ID", settings.LINE_ADMIN_USER_ID)
+                                    if admin_id and pub_res.get("reel_url"):
+                                        await line_service.push(admin_id, [{
+                                            "type": "text",
+                                            "text": (
+                                                f"🎬 ระบบอัตโนมัติโพสต์คลิปสำเร็จ (รอบ 4 ชม.)!\n\n"
+                                                f"📌 ตอน: {file_name}\n"
+                                                f"🔗 ลิงก์ Reels: {pub_res.get('reel_url')}\n\n"
+                                                f"ระบบจะตรวจคลิปใหม่และโพสต์รอบถัดไปในอีก 4 ชั่วโมงครับ"
+                                            )
+                                        }])
+                                except Exception as notify_err:
+                                    await log_event("WORKER", "WARNING", f"LINE notification skipped: {notify_err}")
+
+                                # STRICT LIMIT: Only 1 clip per 4-hour cycle
+                                await log_event("WORKER", "INFO", f"1 clip published this cycle ({file_name}). Pausing until next 4-hour run.")
+                                break
                             else:
                                 video_rec.status = "FAILED"
                                 video_rec.error_message = pub_res.get("error", "Unknown publishing error")

@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     
     # Google Drive
     GDRIVE_FOLDER_ID: str = "1HsnkGFR1wPvQXYVYLeaCaqo7q3BS6uxi"
-    GDRIVE_CHECK_INTERVAL_MINUTES: int = 15
+    GDRIVE_CHECK_INTERVAL_MINUTES: int = 240  # 4 hours
     GOOGLE_SERVICE_ACCOUNT_JSON: Optional[str] = None
     
     # Meta / Facebook
