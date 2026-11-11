@@ -65,22 +65,30 @@ class AIService:
         # Prepare parts with images
         parts = []
 
-        # System instruction prompt in Thai
-        prompt_text = f"""คุณคือผู้เชี่ยวชาญการผลิตสื่อสั้น Facebook Reels และสารคดีประวัติศาสตร์/เรื่องราวน่าทึ่งประจำช่อง 'NOK TAMRA'
+        prompt_text = f"""คุณคือนักเขียนแคปชั่นสารคดีประวัติศาสตร์และวิทยาศาสตร์ประจำช่อง 'NOK TAMRA' (นอกตำรา)
 วิดีโอนี้ชื่อไฟล์: '{file_name}', ความยาวประมาณ {duration:.1f} วินาที
-นี่คือภาพเหตุการณ์สำคัญที่ดึงมาจากช่วงเวลาต่างๆ ของวิดีโอ (10%, 25%, 50%, 75%, 90%)
+นี่คือภาพเหตุการณ์สำคัญที่ดึงมาจากช่วงเวลาต่างๆ ของวิดีโอ
 
-จงวิเคราะห์วิดีโอนี้ตามความเป็นจริง โดยห้ามแต่งเรื่องเท็จ และส่งผลลัพธ์เป็น JSON ในรูปแบบนี้เท่านั้น:
+กฎสำคัญในการเขียนแคปชั่น:
+1. ให้เขียนในรูปแบบ 'สารคดีข้อเท็จจริงประวัติศาสตร์/วิทยาศาสตร์' เข้มข้น มีสาระ ลุ่มลึก ชวนติดตาม
+2. ต้องระบุปี ค.ศ./พ.ศ., สถานที่เกิดเหตุ, หรือข้อมูลบุคคล/วิทยาศาสตร์ที่เกิดขึ้นจริง
+3. ห้ามแต่งเรื่องเท็จ และ **ห้ามใส่อิโมจิหรือสติกเกอร์ใดๆ ทั้งสิ้นในแคปชั่น** (เด็ดขาด)
+4. โครงสร้างแคปชั่น:
+   - บรรทัดแรก: หัวข้อเรื่องสั้นกระชับ
+   - ย่อหน้า 1: เปิดเรื่องด้วยจุดเริ่มต้นของเหตุการณ์/การค้นพบ
+   - ย่อหน้า 2: เจาะลึกรายละเอียด ข้อเท็จจริง ตัวเลข หรือหลักฐาน
+   - ย่อหน้า 3: บทสรุปทางประวัติศาสตร์หรือวิทยาศาสตร์
+5. แฮชแท็ก: ต้องเริ่มต้นด้วย #NOKTAMRA ตามด้วยชื่อตอนภาษาอังกฤษและไทย และลงท้ายด้วย #ประวัติศาสตร์โลก #เรื่องแปลกนอกตำรา #ReelsTH #สารคดี
+
+ส่งผลลัพธ์เป็น JSON ในรูปแบบนี้เท่านั้น:
 {{
   "content_summary": "สรุปเนื้อหาหลักที่เกิดขึ้นจริงในคลิป",
-  "scenes_breakdown": "รายละเอียดภาพและลำดับเหตุการณ์ในแต่ละช่วงเวลา",
-  "speech_and_audio": "การบรรยายหรือบรรยากาศเสียงในคลิป",
+  "scenes_breakdown": "รายละเอียดภาพและลำดับเหตุการณ์",
   "highlights": "จุดเด่นที่น่าสนใจที่สุดของคลิปนี้",
-  "vibe_and_mood": "อารมณ์และบรรยากาศ (เช่น ตื่นเต้น, ลึกลับ, สนุกสนาน, ให้ความรู้)",
-  "target_audience": "กลุ่มผู้ชมเป้าหมาย",
-  "caption_title": "ชื่อคลิปที่ดึงดูดสายตา",
-  "caption_body": "แคปชั่นภาษาไทยที่เปิดด้วย Hook ดึงดูดความสนใจ เล่าเรื่องกระชับ ชวนติดตาม ใช้คำเป็นธรรมชาติ มี Emoji พอเหมาะ ไม่เว่อร์เกินจริง",
-  "hashtags": "#NOKTAMRA #เรื่องเล่า #ประวัติศาสตร์ #เรื่องแปลก #สาระน่ารู้ #ReelsTH"
+  "vibe_and_mood": "สารคดี, น่าทึ่ง, ให้ความรู้",
+  "caption_title": "หัวข้อเรื่องสั้นกระชับ (ไม่มีอิโมจิ)",
+  "caption_body": "เนื้อหาแคปชั่น 3 ย่อหน้ากระชับ สไตล์สารคดีจริง ไม่มีอิโมจิเด็ดขาด",
+  "hashtags": "#NOKTAMRA #หัวข้อ #ประวัติศาสตร์โลก #เรื่องแปลกนอกตำรา #ReelsTH #สารคดี"
 }}
 """
         parts.append({"text": prompt_text})
@@ -145,6 +153,56 @@ class AIService:
                 "hashtags": parsed_json.get("hashtags", "#NOKTAMRA #ReelsTH")
             }
 
+    async def generate_from_script(self, script_text: str, file_name: str) -> Dict[str, Any]:
+        """
+        Generate factual documentary caption directly from Google Drive script.
+        """
+        api_key = await self.get_api_key()
+        if not api_key:
+            return self._fallback_contextual_analysis(file_name, [], 70)
+
+        prompt = f"""คุณคือนักเขียนแคปชั่นสารคดีประวัติศาสตร์และวิทยาศาสตร์ประจำช่อง 'NOK TAMRA' (นอกตำรา)
+ต่อไปนี้คือบทพากย์และสคริปต์วิดีโอตัวเต็มของตอน '{file_name}':
+--------------------
+{script_text[:4000]}
+--------------------
+
+จงอ่านเนื้อหาจากสคริปต์นี้ และสังเคราะห์ออกมาเป็นแคปชั่นลง Facebook Reels:
+1. เขียนเป็นสารคดีประวัติศาสตร์/วิทยาศาสตร์เข้มข้น มีสาระ ลุ่มลึก ชวนติดตาม อ้างอิงตามข้อเท็จจริงในสคริปต์
+2. ระบุปี ค.ศ., สถานที่, หรือข้อมูลทางวิทยาศาสตร์ที่ถูกต้อง
+3. **ห้ามใส่อิโมจิหรือสติกเกอร์ใดๆ ทั้งสิ้นในแคปชั่น** (เด็ดขาด)
+4. โครงสร้างแคปชั่น:
+   - บรรทัดแรก: หัวข้อเรื่องสั้นกระชับ
+   - ย่อหน้า 1: เปิดเรื่องด้วยจุดเริ่มต้นของเหตุการณ์/การค้นพบ
+   - ย่อหน้า 2: เจาะลึกรายละเอียด ข้อเท็จจริง ตัวเลข หรือหลักฐาน
+   - ย่อหน้า 3: บทสรุปทางประวัติศาสตร์หรือวิทยาศาสตร์
+5. แฮชแท็ก: ต้องเริ่มต้นด้วย #NOKTAMRA ตามด้วยชื่อตอนภาษาอังกฤษและไทย และลงท้ายด้วย #ประวัติศาสตร์โลก #เรื่องแปลกนอกตำรา #ReelsTH #สารคดี
+
+ส่งผลลัพธ์เป็น JSON ในรูปแบบนี้เท่านั้น:
+{{
+  "caption_title": "หัวข้อเรื่องสั้นกระชับ (ไม่มีอิโมจิ)",
+  "caption_body": "เนื้อหาแคปชั่น 3 ย่อหน้ากระชับ สไตล์สารคดีจริง ไม่มีอิโมจิเด็ดขาด",
+  "hashtags": "#NOKTAMRA #หัวข้อ #ประวัติศาสตร์โลก #เรื่องแปลกนอกตำรา #ReelsTH #สารคดี"
+}}
+"""
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"response_mime_type": "application/json", "temperature": 0.3}
+        }
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(url, json=payload)
+            if resp.status_code == 200:
+                data = resp.json()
+                text = data["candidates"][0]["content"]["parts"][0]["text"]
+                parsed = json.loads(text)
+                return {
+                    "caption_title": parsed.get("caption_title", file_name),
+                    "caption_body": parsed.get("caption_body", ""),
+                    "hashtags": parsed.get("hashtags", "#NOKTAMRA #ReelsTH")
+                }
+            return self._fallback_contextual_analysis(file_name, [], 70)
+
     def _fallback_contextual_analysis(
         self,
         file_name: str,
@@ -152,23 +210,23 @@ class AIService:
         duration: float
     ) -> Dict[str, Any]:
         """
-        Smart deterministic contextual generator when Gemini API key is pending configuration.
+        Smart deterministic contextual generator without emojis.
         """
-        # Parse title from filename
         clean_name = Path(file_name).stem
         clean_name = clean_name.replace("_", " ").replace("-", " ")
         clean_name = re.sub(r'(FINAL|NOK TAMRA|EP\d+)', '', clean_name, flags=re.IGNORECASE).strip()
         if not clean_name:
-            clean_name = "เรื่องราวสุดทึ่งที่ต้องรู้"
+            clean_name = "เรื่องราวทางประวัติศาสตร์ที่น่าทึ่ง"
 
-        title = f"🎬 {clean_name}"
+        title = f"{clean_name}"
         caption = (
-            f"เปิดตำนานความจริงที่คุณอาจไม่เคยรู้! 📜✨\n\n"
-            f"เจาะลึกเรื่องราวสุดเข้มข้นของ '{clean_name}' ที่ถูกบันทึกไว้ในประวัติศาสตร์ "
-            f"เกิดอะไรขึ้นกันแน่ และทำไมเหตุการณ์นี้ถึงกลายเป็นตำนานที่โลกต้องจดจำ? "
-            f"ชมคลิปเต็มแล้วร่วมพูดคุยกันในคอมเมนต์ได้เลยครับ! 👇👀"
+            f"{clean_name} เรื่องจริงที่ถูกบันทึกไว้ในประวัติศาสตร์\n\n"
+            f"ย้อนกลับไปในอดีต เหตุการณ์ของ {clean_name} ได้สร้างความเปลี่ยนแปลงและความน่าทึ่งให้กับผู้คนในยุคสมัยนั้นอย่างมาก "
+            f"การค้นพบและหลักฐานทางประวัติศาสตร์ชี้ให้เห็นถึงความจริงที่น่าประหลาดใจซึ่งยังคงได้รับการกล่าวขานมาจนถึงปัจจุบัน\n\n"
+            f"เบื้องหลังเรื่องราวที่ดูเหลือเชื่อ มักมีข้อเท็จจริงและหลักการทางธรรมชาติหรือวิทยาศาสตร์ซ่อนอยู่เสมอ "
+            f"เรื่องนี้จึงเป็นอีกหนึ่งบทเรียนสำคัญที่เตือนใจและให้แง่คิดอันทรงคุณค่าแก่คนรุ่นหลัง"
         )
-        hashtags = f"#NOKTAMRA #{clean_name.replace(' ', '')} #ประวัติศาสตร์ #เรื่องเล่า #เรื่องจริง #สารคดี #ReelsTH"
+        hashtags = f"#NOKTAMRA #{clean_name.replace(' ', '')} #ประวัติศาสตร์โลก #เรื่องจริง #เรื่องแปลกนอกตำรา #ReelsTH #สารคดี"
 
         return {
             "analysis": {
@@ -176,7 +234,7 @@ class AIService:
                 "scenes_breakdown": f"วิเคราะห์จากคีย์เฟรม {len(frame_paths)} ช่วงเวลาอย่างละเอียด",
                 "speech_and_audio": "เสียงบรรยายภาษาไทยพร้อมดนตรีประกอบสร้างบรรยากาศ",
                 "highlights": f"เหตุการณ์สำคัญใน '{clean_name}' ที่น่าติดตาม",
-                "vibe_and_mood": "น่าติดตาม, มีสาระ, ตื่นเต้นเร้าใจ",
+                "vibe_and_mood": "สารคดี, น่าทึ่ง, ให้ความรู้",
                 "target_audience": "ผู้ที่ชื่นชอบประวัติศาสตร์ สาระน่ารู้ และเรื่องราวแปลกใหม่ทั่วโลก"
             },
             "caption_title": title,

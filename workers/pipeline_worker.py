@@ -154,12 +154,33 @@ class PipelineWorker:
                         video_rec.hashtags = ""  # Already formatted inside text
                         video_rec.status = "READY_TO_POST"
                     else:
-                        ai_result = await self.ai_service.analyze_and_generate(
-                            file_name=file_name,
-                            frame_paths=frame_paths,
-                            audio_path=audio_path,
-                            duration=video_rec.duration_seconds or 0
-                        )
+                        # Auto Option 1: Search for matching script in 02_Scripts folder
+                        script_text = None
+                        scripts_folder_id = "1VZ_csR3IFhZuTN-pSFlkgG0tIWqPZZSQ"
+                        if ep_match:
+                            try:
+                                ep_query = f"EP{ep_match.group(1)}"
+                                scripts_list = await self.gdrive_service.list_videos(scripts_folder_id)
+                                for sf in scripts_list:
+                                    if ep_query.lower() in sf.get("name", "").lower():
+                                        dl_script = await self.gdrive_service.download_video(sf["id"], sf["name"])
+                                        if dl_script and Path(dl_script["local_path"]).exists():
+                                            script_text = Path(dl_script["local_path"]).read_text(encoding="utf-8")
+                                            await log_event("AI", "INFO", f"Found matching script in Google Drive for {file_name}: {sf['name']}")
+                                            break
+                            except Exception as script_err:
+                                await log_event("AI", "WARNING", f"Script lookup failed: {script_err}")
+
+                        if script_text:
+                            ai_result = await self.ai_service.generate_from_script(script_text, file_name)
+                        else:
+                            ai_result = await self.ai_service.analyze_and_generate(
+                                file_name=file_name,
+                                frame_paths=frame_paths,
+                                audio_path=audio_path,
+                                duration=video_rec.duration_seconds or 0
+                            )
+
                         video_rec.ai_analysis = json.dumps(ai_result.get("analysis", {}), ensure_ascii=False)
                         video_rec.caption_title = ai_result.get("caption_title", file_name)
                         video_rec.caption_body = ai_result.get("caption_body", "")
